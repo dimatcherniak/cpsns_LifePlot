@@ -20,6 +20,8 @@ PORT_DEFAULT = 8090
 USERNAME_DEFAULT = "hbk1"
 PASSWORD_DEFAULT = "hbk1shffd"
 MQTT_TOPIC_DEFAULT = "cpsens/+/+/1/acc/raw/+"  # "cpsens/+/+/1/+/+/data"
+YLIM_DEFAULT = 3 # MATLAB's ylim([-3 3])
+BUFFER_TO_DRAW_DEFAULT = 3 # seconds
 
 myDict = {}
 bReadingMyDict = False
@@ -142,6 +144,8 @@ def main():
     parser.add_argument('--username', type=str, help='Provide a username to be used for authenticating with the broker. See also the --pw argument. Defaults to ' + USERNAME_DEFAULT, default=USERNAME_DEFAULT)
     parser.add_argument('--pw', type=str, help='Provide a password to be used for authenticating with the broker. See also the --username option. Defaults to ' + PASSWORD_DEFAULT, default=PASSWORD_DEFAULT)
     parser.add_argument('--topic', type=str, help='The topic parameter. Defaults to ' + MQTT_TOPIC_DEFAULT, default=MQTT_TOPIC_DEFAULT)
+    parser.add_argument('--ylim', type=float, help='Limits of the Y axis. Defaults to ' + str(YLIM_DEFAULT), default=YLIM_DEFAULT)
+    parser.add_argument('--TimeToCover', type=float, help='Time axis to draw, in seconds. Defaults to ' + str(BUFFER_TO_DRAW_DEFAULT), default=BUFFER_TO_DRAW_DEFAULT)
 
     # Parse the arguments
     args = parser.parse_args()
@@ -157,6 +161,10 @@ def main():
     mqttc.connect(args.host, args.port, 60)
 
     mqttc.loop_start()
+
+    # plot params
+    TimeToCover = args.TimeToCover # seconds
+    ylim = args.ylim
 
     # initiate the plt
     plt.ion()
@@ -193,7 +201,6 @@ def main():
 
                 # Define the global time axis
                 if tAxisCommon is None:
-                    TimeToCover = 3 # seconds
                     tAxisCommon = {"Fs": val["SampleRate"], "AxisStartsAtSample": val["SampleWhenEntryCreated"], "AxisLength": int(round(TimeToCover * val["SampleRate"]))}
                     #print(f'AxisLength = {tAxisCommon["AxisLength"]}')
 
@@ -244,6 +251,7 @@ def main():
                     ta = np.linspace(0, tAxisCommon["AxisLength"]/tAxisCommon["Fs"], tAxisCommon["AxisLength"])
                     line, = ax.plot(ta, val["Data"], label=str(key))
                     plt.legend(loc="upper left")
+                    plt.ylim(-ylim, ylim)
                     val["PlotLine"] = line
 
                 line = val["PlotLine"]
