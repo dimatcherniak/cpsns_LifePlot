@@ -1,0 +1,17 @@
+{
+    "MQTT_IN":
+    {
+        "TopicsToSubscribe": 
+        [
+            "cpsens/+/3053-B-120_sn_105283/+/acc/raw/+"
+        ],
+        "QoS": 0
+    },
+    "Graph": 
+    {
+        "ylim_Comment": "Y axis limits +/-",
+        "ylim": [-7, 7],
+        "TimeToCover_Comment": "X axis length in seconds",
+        "TimeToCover": 30
+    }
+}

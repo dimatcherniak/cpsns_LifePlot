@@ -15,6 +15,7 @@ import time
 import argparse
 import json
 import sys
+import os
 
 HOST_DEFAULT = "dtl-server-2.st.lab.au.dk"
 PORT_DEFAULT = 8090
@@ -24,25 +25,26 @@ MQTT_TOPIC_DEFAULT = "cpsens/+/+/1/acc/raw/+"  # "cpsens/+/+/1/+/+/data"
 YLIM_DEFAULT = 3 # MATLAB's ylim([-3 3])
 BUFFER_TO_DRAW_DEFAULT = 3 # seconds
 
+# Default configuration files
+PRIVATE_CONFIG_FILE_DEFAULT = "private_config.json" # locate this file in the private folder and chmod 600 it.
+PUBLIC_CONFIG_FILE_DEFAULT = "public_config.json"   # this file can be located in a public folder 
+
 myDict = {}
 bReadingMyDict = False
 bWritingMyDict = False
 strMQTTTopic = MQTT_TOPIC_DEFAULT
 
-
-mqttc = MQTTClient(callback_api_version=CallbackAPIVersion.VERSION2, protocol=MQTTv311)
-
-
-def on_connect(mqttc, userdata, flags, rc, properties=None):
-    print("connected with response code %s" % rc)
-    mqttc.subscribe(strMQTTTopic)
-
+def on_connect(mqttc_in, userdata, flags, rc, properties=None):
+    global json_config_public
+    print("MQTT_IN: Connected with response code %s" % rc)
+    for topic in json_config_public["MQTT_IN"]["TopicsToSubscribe"]:
+        print(f"MQTT_IN: Subscribing to the topic {topic}...")
+        mqttc_in.subscribe(topic, qos=json_config_public["MQTT_IN"]["QoS"])
 
 def on_subscribe(self, mqttc, userdata, msg, granted_qos):
-    print("mid/response = " + str(msg) + " / " + str(granted_qos))
+    print("Subscribed. Message: " + str(msg))
 
-
-def on_message(client, userdata, msg):
+def on_message(client, userdata, msg):    
     global myDict, bReadingMyDict, bWritingMyDict
     topic = msg.topic
     substrings = topic.split('/')
@@ -98,6 +100,7 @@ def on_message(client, userdata, msg):
                 "Data": None,
                 "PlotLine": None
             }
+            print(f"Key added: {myKey}.")
     else:
         if myKey in myDict:
             # Parse the payload
@@ -135,7 +138,7 @@ def on_message(client, userdata, msg):
 
 
 def main():
-    global strMQTTTopic
+    global json_config_private, json_config_public
     global myDict, bReadingMyDict, bWritingMyDict
     # Parse command line parameters
     # Create the parser
@@ -147,25 +150,63 @@ def main():
     parser.add_argument('--topic', type=str, help='The topic parameter. Defaults to ' + MQTT_TOPIC_DEFAULT, default=MQTT_TOPIC_DEFAULT)
     parser.add_argument('--ylim', type=float, help='Limits of the Y axis. Defaults to ' + str(YLIM_DEFAULT), default=YLIM_DEFAULT)
     parser.add_argument('--TimeToCover', type=float, help='Time axis to draw, in seconds. Defaults to ' + str(BUFFER_TO_DRAW_DEFAULT), default=BUFFER_TO_DRAW_DEFAULT)
+    parser.add_argument('--config_private', type=str, help='Specify the JSON configuration file for PRIVATE data. Defaults to ' + PRIVATE_CONFIG_FILE_DEFAULT, default=PRIVATE_CONFIG_FILE_DEFAULT)
+    parser.add_argument('--config_public', type=str, help='Specify the JSON configuration file for PUBLIC data. Defaults to ' + PUBLIC_CONFIG_FILE_DEFAULT, default=PUBLIC_CONFIG_FILE_DEFAULT)
 
     # Parse the arguments
     args = parser.parse_args()
 
-    strMQTTTopic = args.topic
+    # Parsing the configuration files..
+    # Name of the private configuration file
+    strConfigFile = args.config_private
+    # Read the configuration file
+    print(f"Reading private configuration from {strConfigFile}...")
+    if os.path.exists(strConfigFile):
+        try:
+            # Open and read the JSON file
+            with open(strConfigFile, 'r') as file:
+                json_config_private = json.load(file)
+        except json.JSONDecodeError:
+            print(f"Error: The file {strConfigFile} exists but could not be parsed as JSON.", file=sys.stderr)
+            sys.exit(1)
+    else:
+        print(f"Error: The file {strConfigFile} does not exist.", file=sys.stderr)    
+        sys.exit(1)
+
+    # Name of the public configuration file
+    strConfigFile = args.config_public
+    # Read the configuration file
+    print(f"Reading public configuration from {strConfigFile}...")
+    if os.path.exists(strConfigFile):
+        try:
+            # Open and read the JSON file
+            with open(strConfigFile, 'r') as file:
+                json_config_public = json.load(file)
+        except json.JSONDecodeError:
+            print(f"Error: The file {strConfigFile} exists but could not be parsed as JSON.", file=sys.stderr)
+            sys.exit(1)
+    else:
+        print(f"Error: The file {strConfigFile} does not exist.", file=sys.stderr)    
+        sys.exit(1)
+
+    # MQTT_IN stuff
+    mqttc_in = MQTTClient(callback_api_version=CallbackAPIVersion.VERSION2, protocol=MQTTv311)
 
     # Set username and password
-    mqttc.username_pw_set(args.username, args.pw)
+    if json_config_private["MQTT_IN"]["userId"] != "":
+        mqttc_in.username_pw_set(json_config_private["MQTT_IN"]["userId"], json_config_private["MQTT_IN"]["password"])
 
-    mqttc.on_connect = on_connect
-    mqttc.on_message = on_message
-    mqttc.on_subscribe = on_subscribe
-    mqttc.connect(args.host, args.port, 60)
+    mqttc_in.on_connect = on_connect
+    mqttc_in.on_message = on_message
+    mqttc_in.on_subscribe = on_subscribe
+    mqttc_in.connect(json_config_private["MQTT_IN"]["host"], json_config_private["MQTT_IN"]["port"], 60) # we subscribe to the topics in on_connect callback
 
-    mqttc.loop_start()
+    mqttc_in.loop_start()
+    # MQTT_IN done
 
-    # plot params
-    TimeToCover = args.TimeToCover # seconds
-    ylim = args.ylim
+    # plot params, from public configuration
+    TimeToCover = json_config_public["Graph"]["TimeToCover"] # seconds
+    ylim = json_config_public["Graph"]["ylim"] # Y axis limits
 
     # initiate the plt
     plt.ion()
@@ -252,7 +293,7 @@ def main():
                     ta = np.linspace(0, tAxisCommon["AxisLength"]/tAxisCommon["Fs"], tAxisCommon["AxisLength"])
                     line, = ax.plot(ta, val["Data"], label=str(key))
                     plt.legend(loc="upper left")
-                    plt.ylim(-ylim, ylim)
+                    plt.ylim(ylim[0], ylim[1])
                     val["PlotLine"] = line
 
                 line = val["PlotLine"]
