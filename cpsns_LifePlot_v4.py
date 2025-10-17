@@ -1,6 +1,7 @@
 """
 This program will
-1. read CP-SENS MQTT messages, both data and metadata
+1. Get the configuration from private and public JSON configuration files
+1. read CP-SENS MQTT messages v.2, both data and metadata
 2. plot the data
 """
 import matplotlib.pyplot as plt
