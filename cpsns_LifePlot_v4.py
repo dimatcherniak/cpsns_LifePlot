@@ -143,13 +143,6 @@ def main():
     # Parse command line parameters
     # Create the parser
     parser = argparse.ArgumentParser(description="This Python script reads the time data from MQTT and outputs it on a life graph.")
-    parser.add_argument('--host', type=str, help='Specify the host to connect to. Defaults to ' + HOST_DEFAULT, default=HOST_DEFAULT)
-    parser.add_argument('--port', type=int, help='Connect to the port specified. Defaults to ' + str(PORT_DEFAULT), default=PORT_DEFAULT)
-    parser.add_argument('--username', type=str, help='Provide a username to be used for authenticating with the broker. See also the --pw argument. Defaults to ' + USERNAME_DEFAULT, default=USERNAME_DEFAULT)
-    parser.add_argument('--pw', type=str, help='Provide a password to be used for authenticating with the broker. See also the --username option. Defaults to ' + PASSWORD_DEFAULT, default=PASSWORD_DEFAULT)
-    parser.add_argument('--topic', type=str, help='The topic parameter. Defaults to ' + MQTT_TOPIC_DEFAULT, default=MQTT_TOPIC_DEFAULT)
-    parser.add_argument('--ylim', type=float, help='Limits of the Y axis. Defaults to ' + str(YLIM_DEFAULT), default=YLIM_DEFAULT)
-    parser.add_argument('--TimeToCover', type=float, help='Time axis to draw, in seconds. Defaults to ' + str(BUFFER_TO_DRAW_DEFAULT), default=BUFFER_TO_DRAW_DEFAULT)
     parser.add_argument('--config_private', type=str, help='Specify the JSON configuration file for PRIVATE data. Defaults to ' + PRIVATE_CONFIG_FILE_DEFAULT, default=PRIVATE_CONFIG_FILE_DEFAULT)
     parser.add_argument('--config_public', type=str, help='Specify the JSON configuration file for PUBLIC data. Defaults to ' + PUBLIC_CONFIG_FILE_DEFAULT, default=PUBLIC_CONFIG_FILE_DEFAULT)
 
