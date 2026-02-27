@@ -6,6 +6,7 @@ This program will
 """
 import matplotlib.pyplot as plt
 import numpy as np
+import ssl
 from paho.mqtt.client import Client as MQTTClient
 from paho.mqtt.client import CallbackAPIVersion
 from paho.mqtt.client import MQTTv311
@@ -188,6 +189,18 @@ def main():
     # Set username and password
     if json_config_private["MQTT_IN"]["userId"] != "":
         mqttc_in.username_pw_set(json_config_private["MQTT_IN"]["userId"], json_config_private["MQTT_IN"]["password"])
+
+    # TLS configuration (ONLY if enabled)
+    if json_config_private["MQTT_IN"].get("useTLS", False):
+        mqttc_in.tls_set(
+            ca_certs=json_config_private["MQTT_IN"]["caFile"],
+            certfile=None,
+            keyfile=None,
+            tls_version=ssl.PROTOCOL_TLS_CLIENT
+        )
+
+        # Optional but recommended
+        mqttc_in.tls_insecure_set(False)
 
     mqttc_in.on_connect = on_connect
     mqttc_in.on_message = on_message
