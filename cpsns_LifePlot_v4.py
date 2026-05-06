@@ -106,7 +106,17 @@ def on_message(client, userdata, msg):
         if myKey in myDict:
             # Parse the payload
             payload = msg.payload
-            descriptorLength, metadataVer = struct.unpack_from('HH', payload)
+            # descriptorLength, metadataVer = struct.unpack_from('HH', payload) # assumes "default", which is little endian here
+
+            # Trying to load in big-endian and little-endian ways
+            char_LE, char_BE = '<','>'
+            temp, metadataVer_LE = struct.unpack_from(char_LE+'HH', payload) # assumes little endian here
+            temp, metadataVer_BE = struct.unpack_from(char_BE+'HH', payload) # assumes big endian here
+            char_Endian = char_LE if metadataVer_LE < metadataVer_BE else char_BE
+            
+            # re-read the descriptor
+            descriptorLength, metadataVer = struct.unpack_from(char_Endian+'HH', payload) 
+
             # how many samples and what's its type, float or double?
             cType = myDict[myKey]["DataType"]
             nSamples = myDict[myKey]["SamplesInPayload"]
@@ -115,16 +125,16 @@ def on_message(client, userdata, msg):
                 payload_len = len(payload)
                 nSamples = round((payload_len-descriptorLength)/struct.calcsize(cType))
             # Data
-            strBinFormat = str(nSamples) + str(cType)  # e.g., '640f' for 640 floats
+            strBinFormat = char_Endian + str(nSamples) + str(cType)  # e.g., '>640f' for 640 floats, big-endian
             # data
             data = np.array(struct.unpack_from(strBinFormat, payload, descriptorLength))
             # time stamp of the payload
-            secFromEpoch = struct.unpack_from('Q', payload, 4)[0]
-            nanosec = struct.unpack_from('Q', payload, 12)[0]
+            secFromEpoch = struct.unpack_from(char_Endian + 'Q', payload, 4)[0]
+            nanosec = struct.unpack_from(char_Endian + 'Q', payload, 12)[0]
             # nSamples
             nSamplesFromDAQStart = 0
             if metadataVer >= 2:
-                nSamplesFromDAQStart = struct.unpack_from('Q', payload, 20)[0]
+                nSamplesFromDAQStart = struct.unpack_from(char_Endian + 'Q', payload, 20)[0]
             else:
                 raise Exception("Incompatible version. Use earlier version of cpsns_LifePlot!")
             if myDict[myKey]["SampleWhenEntryCreated"] == 0:
