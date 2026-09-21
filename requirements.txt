@@ -1,0 +1,6 @@
+matplotlib
+paho-mqtt
+numpy
+pyqtgraph
+PySide6
+
